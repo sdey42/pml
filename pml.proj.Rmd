@@ -1,0 +1,58 @@
+---
+title: "PML_Project"
+author: "Siladitya Dey"
+date: "December 13, 2014"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(data.table)
+pml.train<-as.data.table(read.csv('~/Downloads/pml-training.csv'))
+pml.test<-as.data.table(read.csv('~/Downloads/pml-testing.csv'))
+```
+The measurements from arm, belt, dumbell, and forearm for each participant is what we're after. Within each of these four broad parameters we have many variables that have been observed. We'd like to carry out a principal component analysis to reduce the dimensionality of each broad parameter (e.g. arm) to a fewer number of variables that cover say 90~95% of variance.
+```{r}
+#l_areas<-c('arm', 'belt', 'dumbell', 'forearm' )
+pml.arm<-pml.train[,grep('_arm$', names(pml.train), value=T), with=F]
+for (c in names(pml.arm)) {
+  if (grepl('factor', class(pml.arm[[c]]))) {
+    cat(c,class(pml.arm[[c]]),'\n')
+    pml.arm[[c]] <- as.numeric(as.character(c))
+  }
+}
+
+pml.belt<-pml.train[,grep('_belt$', names(pml.train), value=T), with=F]
+for (c in names(pml.belt)) {
+  if (grepl('factor', class(pml.belt[[c]]))) {
+    cat(c,class(pml.belt[[c]]),'\n')
+    pml.belt[[c]] <- as.numeric(as.character(c))
+  }
+}
+
+pml.dumbell<-pml.train[,grep('_dumbell$', names(pml.train), value=T), with=F]
+for (c in names(pml.dumbell)) {
+  if (grepl('factor', class(pml.dumbell[[c]]))) {
+    cat(c,class(pml.dumbell[[c]]),'\n')
+    pml.dumbell[[c]] <- as.numeric(as.character(c))
+  }
+}
+
+pml.forearm<-pml.train[,grep('_forearm$', names(pml.train), value=T), with=F]
+for (c in names(pml.forearm)) {
+  if (grepl('factor', class(pml.forearm[[c]]))) {
+    cat(c,class(pml.forearm[[c]]),'\n')
+    pml.forearm[[c]] <- as.numeric(as.character(c))
+  }
+}
+```
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
