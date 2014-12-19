@@ -24,9 +24,9 @@ dt.part.means<-function(col.means, dt.in) {
   dt.out<-dt.in[0]
   cat(dim(dt.out),'\n')
   cat(names(dt.out),'\n')
-  for (c in names(col.means)) {
+  for (c in names(col.means)) { # START: problem here
     dt.out[[c]]<-rep(col.means[[c]], nrow(dt.in))
-  }
+  } # STOP: Problem here
   return(dt.out)
 }
 
@@ -39,36 +39,3 @@ for (p in l_parts) {
   dt.part.out[is.na(dt.part.out)]<-0
   dt.part.out
 }
-
-
-# pml.arm<-pml.train[,grep('_arm$', names(pml.train), value=T), with=F]
-# for (c in names(pml.arm)) {
-#   if (grepl('factor', class(pml.arm[[c]]))) {
-#     cat(c,class(pml.arm[[c]]),'\n')
-#     pml.arm[[c]] <- as.numeric(as.character(c))
-#   }
-# }
-# 
-# pml.belt<-pml.train[,grep('_belt$', names(pml.train), value=T), with=F]
-# for (c in names(pml.belt)) {
-#   if (grepl('factor', class(pml.belt[[c]]))) {
-#     cat(c,class(pml.belt[[c]]),'\n')
-#     pml.belt[[c]] <- as.numeric(as.character(c))
-#   }
-# }
-# 
-# pml.dumbell<-pml.train[,grep('_dumbell$', names(pml.train), value=T), with=F]
-# for (c in names(pml.dumbell)) {
-#   if (grepl('factor', class(pml.dumbell[[c]]))) {
-#     cat(c,class(pml.dumbell[[c]]),'\n')
-#     pml.dumbell[[c]] <- as.numeric(as.character(c))
-#   }
-# }
-# 
-# pml.forearm<-pml.train[,grep('_forearm$', names(pml.train), value=T), with=F]
-# for (c in names(pml.forearm)) {
-#   if (grepl('factor', class(pml.forearm[[c]]))) {
-#     cat(c,class(pml.forearm[[c]]),'\n')
-#     pml.forearm[[c]] <- as.numeric(as.character(c))
-#   }
-# }
