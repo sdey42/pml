@@ -15,19 +15,12 @@ get.dt.by.part<-function(dt.in, part.name) {
   return(dt.out)
 }
 
-# dt.part.normalize<-function(dt.in, col.means) {
-#   dt.means<-dt.in[0]
-#   dt.in - cbind(rep(col.means, nrow(dt.in)))
-# }
-
 get.dt.part.means<-function(col.means, dt.in) {
-  dt.out<-dt.in[0]
-  cat(dim(dt.out),'\n')
-  cat(names(dt.out),'\n')
-  for (c in names(col.means)) { # START: problem here
-    dt.out[[c]]<-c(rep(col.means[[c]], nrow(dt.in)))
-  } # STOP: Problem here
-  return(dt.out)
+  l.out<-list()
+  for (c in names(col.means)) {
+    l.out[[c]]<-c(rep(col.means[[c]], nrow(dt.in)))
+  }
+  return(as.data.table(l.out))
 }
 
 get.l.part.var<-function(dt.in) {
@@ -38,14 +31,27 @@ get.l.part.var<-function(dt.in) {
   return(l.out)
 }
 
+get.dt.part.clean<-function(dt.in) {
+  for (c in colnames(dt.in)) {
+    if ( length(which(is.na(dt.in[[c]]))) > length(which(!is.na(dt.in[[c]]))) ) {
+      # Do something to remove that column
+      dt.in[[c]]<-NULL
+    }
+  }
+  return(dt.in)
+}
+
 l_parts<-c('arm', 'belt', 'dumbbell', 'forearm')
 for (p in l_parts) {
   dt.part<-get.dt.by.part(dt.in=pml.train, part.name=p)
   #cat(colMeans(dt.part, na.rm=T),'\n')
-  dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part)
-  l.vars<-get.l.part.var(dt.part)
+  dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part) # works!
+  #str(dt.means)
+  l.vars<-get.l.part.var(dt.part) # works!
   #str(l.vars)
-  #dt.part.out<-dt.part-dt.means
-  #dt.part.out[is.na(dt.part.out)]<-0
-  #dt.part.out
+  dt.part.norm<-(dt.part - dt.means)/l.vars # works; now need to cleanup all NA columns
+  #str(dt.part.norm)
+  dt.part.clean<-get.dt.part.clean(dt.part.norm) # works, has only 4 dimensions!
+  #str(dt.part.clean,'\n')
+  #cat(dim(dt.part.clean),'\n')
 }
