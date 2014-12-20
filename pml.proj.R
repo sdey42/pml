@@ -1,4 +1,6 @@
 library(data.table)
+library(caret)
+
 pml.train<-as.data.table(read.csv('~/Downloads/pml-training.csv'))
 pml.test<-as.data.table(read.csv('~/Downloads/pml-testing.csv'))
 #str(pml.train)
@@ -41,17 +43,28 @@ get.dt.part.clean<-function(dt.in) {
   return(dt.in)
 }
 
-l_parts<-c('arm', 'belt', 'dumbbell', 'forearm')
-for (p in l_parts) {
-  dt.part<-get.dt.by.part(dt.in=pml.train, part.name=p)
-  #cat(colMeans(dt.part, na.rm=T),'\n')
-  dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part) # works!
-  #str(dt.means)
-  l.vars<-get.l.part.var(dt.part) # works!
-  #str(l.vars)
-  dt.part.norm<-(dt.part - dt.means)/l.vars # works; now need to cleanup all NA columns
-  #str(dt.part.norm)
-  dt.part.clean<-get.dt.part.clean(dt.part.norm) # works, has only 4 dimensions!
-  #str(dt.part.clean,'\n')
-  #cat(dim(dt.part.clean),'\n')
+get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.parts=c('X', 'user_name', 'new_window', 'num_window'), dt.in, is.train=F) {
+  dt.out<-data.table()
+  for (p in l.parts) {
+    dt.part<-get.dt.by.part(dt.in, part.name=p)
+    dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part) # works!
+    l.vars<-get.l.part.var(dt.part) # works!
+    dt.part.norm<-(dt.part - dt.means)/l.vars # works; now need to cleanup all NA columns
+    dt.part.clean<-get.dt.part.clean(dt.part.norm) # works, has only 4 dimensions!
+    if (nrow(dt.out)==0) {
+      dt.out<-dt.part.clean
+    } else {
+      dt.out<-cbind(dt.out, dt.part.clean)
+    }
+  }
+  dt.out<-cbind(dt.out, dt.in[, l.not.parts, with=F])
+  if (is.train) {
+    dt.out[, classe:=dt.in[,classe]]
+  }
+  return(dt.out)
 }
+
+dt.train<-get.dt.clean(dt.in=pml.train, is.train=T) # works
+dt.test<-get.dt.clean(dt.in=pml.test) # works
+
+#createDataPartition()
