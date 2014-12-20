@@ -3,8 +3,6 @@ library(caret)
 
 pml.train<-as.data.table(read.csv('~/Downloads/pml-training.csv'))
 pml.test<-as.data.table(read.csv('~/Downloads/pml-testing.csv'))
-#str(pml.train)
-#str(pml.test)
 
 get.dt.by.part<-function(dt.in, part.name) {
   dt.out<-dt.in[,grep(paste0('_',part.name,'$'), names(dt.in), value=T), with=F]
@@ -67,4 +65,18 @@ get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.pa
 dt.train<-get.dt.clean(dt.in=pml.train, is.train=T) # works
 dt.test<-get.dt.clean(dt.in=pml.test) # works
 
-#createDataPartition()
+in.train<-createDataPartition(y=dt.train$classe, p=0.6, list=F)
+training<-as.data.frame(dt.train)[in.train,]
+#training.2<-as.data.frame(dt.train)[in.train,-c(20,19,18,17)]
+testing<-as.data.frame(dt.train)[-in.train,]
+
+set.seed(1475)
+#train.pc<-preProcess(training[,-c(21, 20, 19, 18, 17)], method='pca', thresh=0.95)
+#train.pc<-preProcess(training.2[,-dim(training.2)[2]], method='pca', thresh=0.95)
+#pred.pc<-predict(train.pc, training.2[,-dim(training.2)[2]])
+
+#model.rf<-train(classe~., data=training, method='rf', prox=T)
+cat('START randomForest...\n')
+model.rf<-randomForest(training[,-dim(training)[2]], training[, dim(training)[2]], prox=T)
+plot(model.rf)
+
