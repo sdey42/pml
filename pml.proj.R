@@ -8,7 +8,6 @@ get.dt.by.part<-function(dt.in, part.name) {
   dt.out<-dt.in[,grep(paste0('_',part.name,'$'), names(dt.in), value=T), with=F]
   for (c in names(dt.out)) {
     if ( !grepl('numeric', class(dt.out[[c]])) & !grepl('integer', class(dt.out[[c]])) ) {
-      #cat(c,class(dt.out[[c]]),'\n')
       dt.out[[c]] <- as.numeric(as.character(c))
     }
   }
@@ -45,10 +44,10 @@ get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.pa
   dt.out<-data.table()
   for (p in l.parts) {
     dt.part<-get.dt.by.part(dt.in, part.name=p)
-    dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part) # works!
-    l.vars<-get.l.part.var(dt.part) # works!
-    dt.part.norm<-(dt.part - dt.means)/l.vars # works; now need to cleanup all NA columns
-    dt.part.clean<-get.dt.part.clean(dt.part.norm) # works, has only 4 dimensions!
+    dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part)
+    l.vars<-get.l.part.var(dt.part)
+    dt.part.norm<-(dt.part - dt.means)/l.vars
+    dt.part.clean<-get.dt.part.clean(dt.part.norm)
     if (nrow(dt.out)==0) {
       dt.out<-dt.part.clean
     } else {
@@ -62,8 +61,8 @@ get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.pa
   return(dt.out)
 }
 
-dt.train<-get.dt.clean(dt.in=pml.train, is.train=T) # works
-dt.test<-get.dt.clean(dt.in=pml.test) # works
+dt.train<-get.dt.clean(dt.in=pml.train, is.train=T)
+dt.test<-get.dt.clean(dt.in=pml.test)
 
 in.train<-createDataPartition(y=dt.train$classe, p=0.6, list=F)
 training<-as.data.frame(dt.train)[in.train,]
@@ -76,7 +75,18 @@ set.seed(1475)
 #pred.pc<-predict(train.pc, training.2[,-dim(training.2)[2]])
 
 #model.rf<-train(classe~., data=training, method='rf', prox=T)
-cat('START randomForest...\n')
+cat('START randomForest...')
 model.rf<-randomForest(training[,-dim(training)[2]], training[, dim(training)[2]], prox=T)
+#model.rf1<-train(classe~ ., data=training, method='rf', prox=T)
 plot(model.rf)
+cat('STOP randomForest\n')
 
+cat('START predict...')
+pred<-predict(model.rf, testing)
+testing$predRight<-pred==testing$classe
+table(pred, testing$classe)
+cat('STOP predict\n')
+
+dt.test[, new_window:=factor(new_window, levels=c('no', 'yes'))]
+pred.new<-predict(model.rf, dt.test)
+#model.boost<-train(classe~., method='ada', data=training, verbose=F)

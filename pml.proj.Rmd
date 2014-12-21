@@ -9,50 +9,94 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r}
+```{r, message=FALSE}
 library(data.table)
+library(randomForest)
+library(caret)
 pml.train<-as.data.table(read.csv('~/Downloads/pml-training.csv'))
 pml.test<-as.data.table(read.csv('~/Downloads/pml-testing.csv'))
 ```
 The measurements from arm, belt, dumbell, and forearm for each participant is what we're after. Within each of these four broad parameters we have many variables that have been observed. We'd like to carry out a principal component analysis to reduce the dimensionality of each broad parameter (e.g. arm) to a fewer number of variables that cover say 90~95% of variance.
-```{r}
-#l_areas<-c('arm', 'belt', 'dumbell', 'forearm' )
-pml.arm<-pml.train[,grep('_arm$', names(pml.train), value=T), with=F]
-for (c in names(pml.arm)) {
-  if (grepl('factor', class(pml.arm[[c]]))) {
-    cat(c,class(pml.arm[[c]]),'\n')
-    pml.arm[[c]] <- as.numeric(as.character(c))
+```{r, message=FALSE}
+get.dt.by.part<-function(dt.in, part.name) {
+  dt.out<-dt.in[,grep(paste0('_',part.name,'$'), names(dt.in), value=T), with=F]
+  for (c in names(dt.out)) {
+    if ( !grepl('numeric', class(dt.out[[c]])) & !grepl('integer', class(dt.out[[c]])) ) {
+      dt.out[[c]] <- as.numeric(as.character(c))
+    }
   }
+  return(dt.out)
 }
 
-pml.belt<-pml.train[,grep('_belt$', names(pml.train), value=T), with=F]
-for (c in names(pml.belt)) {
-  if (grepl('factor', class(pml.belt[[c]]))) {
-    cat(c,class(pml.belt[[c]]),'\n')
-    pml.belt[[c]] <- as.numeric(as.character(c))
+get.dt.part.means<-function(col.means, dt.in) {
+  l.out<-list()
+  for (c in names(col.means)) {
+    l.out[[c]]<-c(rep(col.means[[c]], nrow(dt.in)))
   }
+  return(as.data.table(l.out))
 }
 
-pml.dumbell<-pml.train[,grep('_dumbell$', names(pml.train), value=T), with=F]
-for (c in names(pml.dumbell)) {
-  if (grepl('factor', class(pml.dumbell[[c]]))) {
-    cat(c,class(pml.dumbell[[c]]),'\n')
-    pml.dumbell[[c]] <- as.numeric(as.character(c))
+get.l.part.var<-function(dt.in) {
+  l.out<-list()
+  for (c in colnames(dt.in)) {
+    l.out[[c]]<-var(dt.in[[c]], na.rm=T)
   }
+  return(l.out)
 }
 
-pml.forearm<-pml.train[,grep('_forearm$', names(pml.train), value=T), with=F]
-for (c in names(pml.forearm)) {
-  if (grepl('factor', class(pml.forearm[[c]]))) {
-    cat(c,class(pml.forearm[[c]]),'\n')
-    pml.forearm[[c]] <- as.numeric(as.character(c))
+get.dt.part.clean<-function(dt.in) {
+  for (c in colnames(dt.in)) {
+    if ( length(which(is.na(dt.in[[c]]))) > length(which(!is.na(dt.in[[c]]))) ) {
+      # Do something to remove that column
+      dt.in[[c]]<-NULL
+    }
   }
+  return(dt.in)
 }
+
+get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.parts=c('X', 'user_name', 'new_window', 'num_window'), dt.in, is.train=F) {
+  dt.out<-data.table()
+  for (p in l.parts) {
+    dt.part<-get.dt.by.part(dt.in, part.name=p)
+    dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part)
+    l.vars<-get.l.part.var(dt.part)
+    dt.part.norm<-(dt.part - dt.means)/l.vars
+    dt.part.clean<-get.dt.part.clean(dt.part.norm)
+    if (nrow(dt.out)==0) {
+      dt.out<-dt.part.clean
+    } else {
+      dt.out<-cbind(dt.out, dt.part.clean)
+    }
+  }
+  dt.out<-cbind(dt.out, dt.in[, l.not.parts, with=F])
+  if (is.train) {
+    dt.out[, classe:=dt.in[,classe]]
+  }
+  return(dt.out)
+}
+
+dt.train<-get.dt.clean(dt.in=pml.train, is.train=T)
+dt.test<-get.dt.clean(dt.in=pml.test)
+
+in.train<-createDataPartition(y=dt.train$classe, p=0.6, list=F)
+training<-as.data.frame(dt.train)[in.train,]
+#training.2<-as.data.frame(dt.train)[in.train,-c(20,19,18,17)]
+testing<-as.data.frame(dt.train)[-in.train,]
+
+set.seed(1475)
+#train.pc<-preProcess(training[,-c(21, 20, 19, 18, 17)], method='pca', thresh=0.95)
+#train.pc<-preProcess(training.2[,-dim(training.2)[2]], method='pca', thresh=0.95)
+#pred.pc<-predict(train.pc, training.2[,-dim(training.2)[2]])
+
+#model.rf<-train(classe~., data=training, method='rf', prox=T)
+cat('START randomForest...\n')
+model.rf<-randomForest(training[,-dim(training)[2]], training[, dim(training)[2]], prox=T)
+
 ```
 You can also embed plots, for example:
 
 ```{r, echo=FALSE}
-plot(cars)
+plot(model.rf)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
