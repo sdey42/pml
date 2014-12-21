@@ -37,12 +37,11 @@ I decided to use a Random Forest implementation for my prediction model. I had i
 *Model*   
 The training dataset was further split into a 60-40 (training - cross validation) subset. I used the training portion of the overall training dataset to construct, and build the random forest model structure. The out-of-sample error was 0.18%, which was calculated by dividing the total number of mis-classified instances in the training dataset with the total size of the training dataset *(100 x 14/7852 = 0.1782)*. In addition to calculating the out-of-sample error, I also tried to account for over fitting of the random forest model over the existing training set by verifying the error rate for various random forest models using *rfcv*, and checking that the mean squared error.
 
-<!--<img src="/Users/sila/numTrees_error.jpg" />-->
-![Error rate vs number of Trees](/Users/sila/numTrees_error3.jpg)
+<!--![Error rate vs number of Trees](/Users/sila/numTrees_error3.jpg)-->
    
    
 ###Code   
-```{r, eval=FALSE, message=FALSE}
+```{r, warning=F, message=F}
 get.dt.by.part<-function(dt.in, part.name) {
   dt.out<-dt.in[,grep(paste0('_',part.name,'$'), names(dt.in), value=T), with=F]
   for (c in names(dt.out)) {
@@ -111,16 +110,23 @@ in.train<-createDataPartition(y=dt.train$classe, p=0.6, list=F)
 training<-as.data.frame(dt.train)[in.train,]
 testing<-as.data.frame(dt.train)[-in.train,]
 
-train.rfcv<-rfcv(dt.train[,-dim(dt.train)[2],with=F], dt.train$classe)
-train.rfcv$error.cv
+#train.rfcv<-rfcv(dt.train[,-dim(dt.train)[2],with=F], dt.train$classe)
+#train.rfcv$error.cv
 
 model.rf<-randomForest(training[,-dim(training)[2]], training[, dim(training)[2]], prox=T)
-plot(model.rf)
+```
 
+```{r, warning=F, echo=F, fig.width=7, fig.height=7, fig.align='center'}
+plot(model.rf)
+```
+
+```{r, warning=F, message=F}
 pred<-predict(model.rf, testing)
 testing$predRight<-pred==testing$classe
 table(pred, testing$classe)
+```
 
-dt.test[, new_window:=factor(new_window, levels=c('no', 'yes'))]
+```{r, warning=F, message=F}
+dt.test<-dt.test[, new_window:=factor(new_window, levels=c('no', 'yes'))]
 pred.new<-predict(model.rf, dt.test)
 ```
