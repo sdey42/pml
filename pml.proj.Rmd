@@ -1,23 +1,48 @@
 ---
-title: "PML_Project"
+title: "Are you working out right? Let us classify!"
 author: "Siladitya Dey"
-date: "December 13, 2014"
+date: "December 21, 2014"
 output: html_document
+theme: cerulean
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### Introduction   
+With the advent of a plethora of wearable devices *(Jawbone Up, Nike FuelBand, Fitbit, etc)*, the Quantified Self movement has gathered momentum in terms of allowing users to gather activity data about themselves. However, there is not a qualititative aspect to the activity data, i.e. an incorrect method of doing squats is valued just as much as an accurate method of doing squats as the parameters being collected shed no light on the qualititive aspect. In this regard, Ugulino et. al. in Wearable Computing: Acceleromemeters' Data Classification of Body Postures and Movements, gather data from an experiment from six subjects who are supervised by trainer's to carry out not just the correct way of performing an activity but also five incorrect methods of carrying out the same workout.   
+*[Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. ]*
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The goal of this project is to work with a subset of the above-mentioned dataset, learn the characteristics of each of the five incorrect ways of carrying out a workout, and use this model to predict the specific class on unseen data. 
 
-```{r, message=FALSE}
+### Data   
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
 library(data.table)
-library(randomForest)
 library(caret)
+library(randomForest)
+```
+The dataset came in pre-defined training, and testing sets. The training set had 19,622 cases with 159 variables and one outcome variable (classe). The testing set has 20 unmarked cases which we need to classify.
+``` {r, echo=FALSE}
 pml.train<-as.data.table(read.csv('~/Downloads/pml-training.csv'))
 pml.test<-as.data.table(read.csv('~/Downloads/pml-testing.csv'))
 ```
-The measurements from arm, belt, dumbell, and forearm for each participant is what we're after. Within each of these four broad parameters we have many variables that have been observed. We'd like to carry out a principal component analysis to reduce the dimensionality of each broad parameter (e.g. arm) to a fewer number of variables that cover say 90~95% of variance.
-```{r, message=FALSE}
+
+We observe that the measurements are primarily based on measuring various parameters about the *arm*, *belt*, *dumbell*, and *forearm* for each participant.   
+
+*Cleanup*   
+There is a lot of missing data in our dataset, so cleaning up the data is quite important in this case. I decided to clean up the data one portion at a time, i.e. considering all the variables which are relevant to *arm*, finding out those that consist of a majority of missing data, and removing them. This is repeated for the other three grouping variables as well, and we're left with only 16 numerical variables; four each from each of the above grouping.   
+Besides the 16 numerical variables, there are three factor variables that were relevant variables in this analysis ('user_name', 'num_window', and 'new_window'), and so only columns corresponding to these variables were retained in the training, as well as the testing dataset.
+
+### Random Forest   
+*Choice*
+I decided to use a Random Forest implementation for my prediction model. I had initially considered using PCA to pre-process the possibly vast number of predictors, but given that a cleanup of data was able to reduce the number of predictors from 159 to 16 ruled out the need to explicitly use PCA for further pre-processing. I did however carry out a PCA on the 16 numerical predictors to see how many components would be required to retain 95% of the variance of the dataset, and it resulted in 12 components. This wasn't a very big purchase in terms of computational savings over 16 predictors, and I decided to go for Random Forest with all of the 19 predictors.   
+
+*Model*   
+The training dataset was further split into a 60-40 (training - cross validation) subset. I used the training portion of the overall training dataset to construct, and build the random forest model structure. The out-of-sample error was 0.18%, which was calculated by dividing the total number of mis-classified instances in the training dataset with the total size of the training dataset *(100 x 14/7852 = 0.1782)*. In addition to calculating the out-of-sample error, I also tried to account for over fitting of the random forest model over the existing training set by verifying the error rate for various random forest models using *rfcv*, and checking that the mean squared error.
+
+<!--<img src="/Users/sila/numTrees_error.jpg" />-->
+![Error rate vs number of Trees](/Users/sila/numTrees_error3.jpg)
+   
+   
+###Code   
+```{r, eval=FALSE, message=FALSE}
 get.dt.by.part<-function(dt.in, part.name) {
   dt.out<-dt.in[,grep(paste0('_',part.name,'$'), names(dt.in), value=T), with=F]
   for (c in names(dt.out)) {
@@ -47,21 +72,24 @@ get.l.part.var<-function(dt.in) {
 get.dt.part.clean<-function(dt.in) {
   for (c in colnames(dt.in)) {
     if ( length(which(is.na(dt.in[[c]]))) > length(which(!is.na(dt.in[[c]]))) ) {
-      # Do something to remove that column
       dt.in[[c]]<-NULL
     }
   }
   return(dt.in)
 }
 
-get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.parts=c('X', 'user_name', 'new_window', 'num_window'), dt.in, is.train=F) {
+get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.parts=c('user_name', 'new_window', 'num_window'), dt.in, is.train=F, to.normalize=F) {
   dt.out<-data.table()
   for (p in l.parts) {
     dt.part<-get.dt.by.part(dt.in, part.name=p)
     dt.means<-get.dt.part.means(colMeans(dt.part, na.rm=T), dt.in=dt.part)
     l.vars<-get.l.part.var(dt.part)
-    dt.part.norm<-(dt.part - dt.means)/l.vars
-    dt.part.clean<-get.dt.part.clean(dt.part.norm)
+    if (to.normalize) {
+      dt.part.final<-(dt.part - dt.means)/l.vars
+    } else {
+      dt.part.final<-dt.part
+    }
+    dt.part.clean<-get.dt.part.clean(dt.part.final)
     if (nrow(dt.out)==0) {
       dt.out<-dt.part.clean
     } else {
@@ -78,25 +106,21 @@ get.dt.clean<-function(l.parts=c('arm', 'belt', 'dumbbell', 'forearm'), l.not.pa
 dt.train<-get.dt.clean(dt.in=pml.train, is.train=T)
 dt.test<-get.dt.clean(dt.in=pml.test)
 
+set.seed(1475)
 in.train<-createDataPartition(y=dt.train$classe, p=0.6, list=F)
 training<-as.data.frame(dt.train)[in.train,]
-#training.2<-as.data.frame(dt.train)[in.train,-c(20,19,18,17)]
 testing<-as.data.frame(dt.train)[-in.train,]
 
-set.seed(1475)
-#train.pc<-preProcess(training[,-c(21, 20, 19, 18, 17)], method='pca', thresh=0.95)
-#train.pc<-preProcess(training.2[,-dim(training.2)[2]], method='pca', thresh=0.95)
-#pred.pc<-predict(train.pc, training.2[,-dim(training.2)[2]])
+train.rfcv<-rfcv(dt.train[,-dim(dt.train)[2],with=F], dt.train$classe)
+train.rfcv$error.cv
 
-#model.rf<-train(classe~., data=training, method='rf', prox=T)
-cat('START randomForest...\n')
 model.rf<-randomForest(training[,-dim(training)[2]], training[, dim(training)[2]], prox=T)
-
-```
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
 plot(model.rf)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+pred<-predict(model.rf, testing)
+testing$predRight<-pred==testing$classe
+table(pred, testing$classe)
+
+dt.test[, new_window:=factor(new_window, levels=c('no', 'yes'))]
+pred.new<-predict(model.rf, dt.test)
+```

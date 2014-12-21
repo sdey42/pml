@@ -72,6 +72,11 @@ in.train<-createDataPartition(y=dt.train$classe, p=0.6, list=F)
 training<-as.data.frame(dt.train)[in.train,]
 testing<-as.data.frame(dt.train)[-in.train,]
 
+cat('START rfcv analysis...\n')
+train.rfcv<-rfcv(dt.train[,-dim(dt.train)[2],with=F], dt.train$classe)
+train.rfcv$error.cv
+cat('STOP\n')
+
 cat('START randomForest...')
 model.rf<-randomForest(training[,-dim(training)[2]], training[, dim(training)[2]], prox=T)
 plot(model.rf)
